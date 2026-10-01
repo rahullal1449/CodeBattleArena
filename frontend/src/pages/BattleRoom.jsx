@@ -5,6 +5,7 @@ import Editor from "@monaco-editor/react";
 import socket from "../services/socket";
 
 import { SUPPORTED_LANGUAGES, getTemplateCode } from "../utils/languageTemplates";
+import TestCaseTray from "../components/TestCaseTray";
 
 function BattleRoom() {
     const { roomCode } = useParams();
@@ -40,8 +41,11 @@ function BattleRoom() {
     const [code, setCode] = useState("");
     const [output, setOutput] = useState("");
     const [running, setRunning] = useState(false);
-    const [verdict, setVerdict] = useState("");
     const [submitting, setSubmitting] = useState(false);
+
+    // Test Case Results & Verdict Data State
+    const [testResults, setTestResults] = useState(null);
+    const [verdictData, setVerdictData] = useState(null);
 
     // Fetch battle details from backend
     const fetchBattleDetails = async () => {
@@ -351,14 +355,19 @@ function BattleRoom() {
         try {
             setRunning(true);
             setOutput("");
+            setVerdictData(null);
+            setTestResults(null);
             const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
             const response = await axios.post(`${apiUrl}/api/code/run`, {
                 code,
-                input: "",
+                problemId: battle?.problem?._id,
                 language
             });
 
+            if (response.data.testCaseResults) {
+                setTestResults(response.data.testCaseResults);
+            }
             setOutput(response.data.output || response.data.error || "Execution completed.");
         } catch (err) {
             setOutput("Execution Error: " + (err.response?.data?.message || err.message));
@@ -371,7 +380,8 @@ function BattleRoom() {
         if (!battle?.problem) return;
         try {
             setSubmitting(true);
-            setVerdict("");
+            setVerdictData(null);
+            setTestResults(null);
             const token = localStorage.getItem("token");
             const user = JSON.parse(atob(token.split('.')[1]));
             const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -397,7 +407,7 @@ function BattleRoom() {
                 }
             );
 
-            setVerdict(response.data.verdict);
+            setVerdictData(response.data);
 
             if (response.data.verdict === "Accepted") {
                 socket.emit("updateOpponentStatus", {
@@ -414,7 +424,7 @@ function BattleRoom() {
                 });
             }
         } catch (err) {
-            setVerdict("Submission Failed: " + (err.response?.data?.message || err.message));
+            setOutput("Submission Failed: " + (err.response?.data?.message || err.message));
         } finally {
             setSubmitting(false);
         }
@@ -690,15 +700,14 @@ function BattleRoom() {
                             />
                         </div>
 
-                        <div className="glass-card" style={{ minHeight: "110px" }}>
-                            <h4 style={{ color: "var(--text-muted)", marginBottom: "6px", fontSize: "0.9rem" }}>Console & Output Tray:</h4>
-                            <pre style={{ color: "var(--accent-green)", fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap", fontSize: "0.9rem" }}>{output || "Click Run to execute code test cases."}</pre>
-                            {verdict && (
-                                <div style={{ marginTop: "10px", padding: "10px 14px", borderRadius: "8px", backgroundColor: verdict === "Accepted" ? "rgba(0, 255, 136, 0.15)" : "rgba(255, 71, 87, 0.15)", border: verdict === "Accepted" ? "1px solid var(--accent-green)" : "1px solid var(--accent-red)" }}>
-                                    <h4 style={{ margin: 0, color: verdict === "Accepted" ? "var(--accent-green)" : "var(--accent-red)", fontSize: "1rem" }}>Verdict: {verdict}</h4>
-                                </div>
-                            )}
-                        </div>
+                        {/* LeetCode Test Case Tray */}
+                        <TestCaseTray
+                            testResults={testResults}
+                            verdictData={verdictData}
+                            output={output}
+                            running={running}
+                            submitLoading={submitting}
+                        />
                     </div>
                 </div>
             </div>

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import axios from "axios";
 import { SUPPORTED_LANGUAGES, getTemplateCode } from "../utils/languageTemplates";
+import TestCaseTray from "../components/TestCaseTray";
 
 function DailyChallenge() {
     const navigate = useNavigate();
@@ -15,8 +16,11 @@ function DailyChallenge() {
     const [code, setCode] = useState("");
     const [output, setOutput] = useState("");
     const [running, setRunning] = useState(false);
-    const [verdict, setVerdict] = useState("");
     const [submitting, setSubmitting] = useState(false);
+
+    // Test Case Results & Verdict Data State
+    const [testResults, setTestResults] = useState(null);
+    const [verdictData, setVerdictData] = useState(null);
 
     const token = localStorage.getItem("token");
 
@@ -53,14 +57,19 @@ function DailyChallenge() {
         try {
             setRunning(true);
             setOutput("");
+            setVerdictData(null);
+            setTestResults(null);
             const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
             const response = await axios.post(`${apiUrl}/api/code/run`, {
                 code,
-                input: "",
+                problemId: dailyData?.problem?._id,
                 language
             });
 
+            if (response.data.testCaseResults) {
+                setTestResults(response.data.testCaseResults);
+            }
             setOutput(response.data.output || response.data.error || "Execution completed.");
         } catch (err) {
             console.error("Run error:", err);
@@ -74,7 +83,8 @@ function DailyChallenge() {
         if (!dailyData?.problem) return;
         try {
             setSubmitting(true);
-            setVerdict("");
+            setVerdictData(null);
+            setTestResults(null);
             const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
             const response = await axios.post(
@@ -91,13 +101,13 @@ function DailyChallenge() {
                 }
             );
 
-            setVerdict(response.data.verdict);
+            setVerdictData(response.data);
             if (response.data.verdict === "Accepted") {
                 fetchDailyChallenge(); // Refresh daily challenge status
             }
         } catch (err) {
             console.error("Submit error:", err);
-            setVerdict("Submission failed: " + (err.response?.data?.message || err.message));
+            setOutput("Submission failed: " + (err.response?.data?.message || err.message));
         } finally {
             setSubmitting(false);
         }
@@ -224,17 +234,14 @@ function DailyChallenge() {
                         />
                     </div>
 
-                    <div className="glass-card" style={{ minHeight: "110px" }}>
-                        <h4 style={{ color: "var(--text-muted)", marginBottom: "6px", fontSize: "0.9rem" }}>Console & Execution Output:</h4>
-                        <pre style={{ color: "var(--accent-green)", fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap", fontSize: "0.9rem" }}>{output || "Run solution to view output."}</pre>
-                        {verdict && (
-                            <div style={{ marginTop: "10px", padding: "10px 14px", borderRadius: "8px", backgroundColor: verdict === "Accepted" ? "rgba(0, 255, 136, 0.15)" : "rgba(255, 71, 87, 0.15)", border: verdict === "Accepted" ? "1px solid var(--accent-green)" : "1px solid var(--accent-red)" }}>
-                                <h4 style={{ margin: 0, color: verdict === "Accepted" ? "var(--accent-green)" : "var(--accent-red)", fontSize: "1rem" }}>
-                                    Verdict: {verdict} {verdict === "Accepted" && "🎉 (+50 Bonus XP Earned!)"}
-                                </h4>
-                            </div>
-                        )}
-                    </div>
+                    {/* LeetCode Test Case Tray */}
+                    <TestCaseTray
+                        testResults={testResults}
+                        verdictData={verdictData}
+                        output={output}
+                        running={running}
+                        submitLoading={submitting}
+                    />
                 </div>
             </div>
         </div>

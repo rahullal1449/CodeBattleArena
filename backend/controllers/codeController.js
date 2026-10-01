@@ -7,7 +7,7 @@ const User = require("../models/User");
 
 const runCode = async (req, res) => {
     try {
-        const { code, input, language = "javascript" } = req.body;
+        const { code, input, problemId, language = "javascript" } = req.body;
 
         if (!code) {
             return res.status(400).json({
@@ -15,6 +15,79 @@ const runCode = async (req, res) => {
             });
         }
 
+        // If problemId is provided, run LeetCode-style sample test cases
+        if (problemId) {
+            const problem = await Problem.findById(problemId);
+            if (problem && problem.testCases && problem.testCases.length > 0) {
+                const results = [];
+                const langKey = (language || "javascript").toLowerCase();
+
+                // Run up to 3 sample test cases for Run Code
+                const sampleTestCases = problem.testCases.slice(0, 3);
+
+                for (const testCase of sampleTestCases) {
+                    let wrappedCode = code;
+
+                    if (langKey === "javascript" || langKey === "js") {
+                        wrappedCode = `
+${code}
+
+try {
+    const fn = typeof ${problem.functionName || "solution"} === 'function' ? ${problem.functionName || "solution"} : (typeof solution === 'function' ? solution : null);
+    if (fn) {
+        const res = fn(${testCase.input});
+        console.log(JSON.stringify(res));
+    }
+} catch(e) {
+    console.error(e.message);
+}
+`;
+                    } else if (langKey === "python" || langKey === "py") {
+                        wrappedCode = `
+${code}
+
+try:
+    import json
+    fn = globals().get('${problem.functionName || "solution"}') or globals().get('solution')
+    if fn:
+        res = fn(${testCase.input})
+        print(json.dumps(res))
+except Exception as e:
+    import sys
+    print(str(e), file=sys.stderr)
+`;
+                    }
+
+                    const result = await executeCode(wrappedCode, testCase.input, language);
+
+                    let actualOutput = (result.stdout || "").trim();
+                    let expectedOutput = (testCase.expectedOutput || "").trim();
+
+                    const passed =
+                        result.status?.id === 3 &&
+                        actualOutput.replace(/\s+/g, "") === expectedOutput.replace(/\s+/g, "");
+
+                    results.push({
+                        input: testCase.input,
+                        expectedOutput,
+                        actualOutput,
+                        status: passed ? "Passed" : "Failed",
+                        error: result.stderr || result.compile_output || ""
+                    });
+                }
+
+                const allPassed = results.every((test) => test.status === "Passed");
+
+                return res.json({
+                    status: allPassed ? "Accepted" : "Wrong Answer",
+                    allPassed,
+                    testCaseResults: results,
+                    output: results.map((r, i) => `[Case ${i + 1}] ${r.status}\nInput: ${r.input}\nActual: ${r.actualOutput || "(empty)"}\nExpected: ${r.expectedOutput}`).join("\n\n")
+                });
+            }
+        }
+
+        // Custom direct execution
         const result = await executeCode(code, input || "", language);
 
         res.json({
@@ -187,6 +260,8 @@ except Exception as e:
         res.json({
             verdict,
             results,
+            passedCount,
+            totalCount: results.length,
             battleResult
         });
     } catch (error) {

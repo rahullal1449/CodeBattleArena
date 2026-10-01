@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import axios from "axios";
 import { SUPPORTED_LANGUAGES, getTemplateCode } from "../utils/languageTemplates";
+import TestCaseTray from "../components/TestCaseTray";
 
 function ProblemDetails() {
     const { id } = useParams();
@@ -14,8 +15,11 @@ function ProblemDetails() {
     const [code, setCode] = useState("");
     const [output, setOutput] = useState("");
     const [running, setRunning] = useState(false);
-    const [verdict, setVerdict] = useState("");
     const [submitLoading, setSubmitLoading] = useState(false);
+
+    // Test cases and verdict state
+    const [testResults, setTestResults] = useState(null);
+    const [verdictData, setVerdictData] = useState(null);
 
     // AI Assistant States
     const [aiHint, setAiHint] = useState("");
@@ -45,14 +49,19 @@ function ProblemDetails() {
         try {
             setRunning(true);
             setOutput("");
+            setVerdictData(null);
+            setTestResults(null);
             const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
             const response = await axios.post(`${apiUrl}/api/code/run`, {
                 code,
-                input: "",
+                problemId: problem._id,
                 language
             });
 
+            if (response.data.testCaseResults) {
+                setTestResults(response.data.testCaseResults);
+            }
             setOutput(response.data.output || response.data.error || "Execution completed.");
         } catch (error) {
             console.error("Run error:", error);
@@ -65,7 +74,8 @@ function ProblemDetails() {
     const submitCode = async () => {
         try {
             setSubmitLoading(true);
-            setVerdict("");
+            setVerdictData(null);
+            setTestResults(null);
             const token = localStorage.getItem("token");
             const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -83,10 +93,10 @@ function ProblemDetails() {
                 }
             );
 
-            setVerdict(response.data.verdict);
+            setVerdictData(response.data);
         } catch (error) {
             console.error("Submit error:", error);
-            setVerdict("Submission failed: " + (error.response?.data?.message || error.message));
+            setOutput("Submission failed: " + (error.response?.data?.message || error.message));
         } finally {
             setSubmitLoading(false);
         }
@@ -257,7 +267,7 @@ function ProblemDetails() {
 
                     <div className="glass-card" style={{ padding: "10px" }}>
                         <Editor
-                            height="450px"
+                            height="420px"
                             language={currentLangObj.monacoLang}
                             value={code}
                             onChange={(val) => setCode(val || "")}
@@ -266,15 +276,14 @@ function ProblemDetails() {
                         />
                     </div>
 
-                    <div className="glass-card" style={{ minHeight: "120px" }}>
-                        <h4 style={{ color: "var(--text-muted)", marginBottom: "6px", fontSize: "0.9rem" }}>Console & Execution Output:</h4>
-                        <pre style={{ color: "var(--accent-green)", fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap", fontSize: "0.9rem" }}>{output || "Run your solution to view output."}</pre>
-                        {verdict && (
-                            <div style={{ marginTop: "10px", padding: "10px 14px", borderRadius: "8px", backgroundColor: verdict === "Accepted" ? "rgba(0, 255, 136, 0.15)" : "rgba(255, 71, 87, 0.15)", border: verdict === "Accepted" ? "1px solid var(--accent-green)" : "1px solid var(--accent-red)" }}>
-                                <h4 style={{ margin: 0, color: verdict === "Accepted" ? "var(--accent-green)" : "var(--accent-red)", fontSize: "1rem" }}>Verdict: {verdict}</h4>
-                            </div>
-                        )}
-                    </div>
+                    {/* LeetCode Test Case Tray */}
+                    <TestCaseTray
+                        testResults={testResults}
+                        verdictData={verdictData}
+                        output={output}
+                        running={running}
+                        submitLoading={submitLoading}
+                    />
                 </div>
             </div>
         </div>

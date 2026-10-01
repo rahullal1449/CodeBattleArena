@@ -38,7 +38,7 @@ function Signup() {
                     navigate("/login");
                 }, 1500);
             } else {
-                setMessage(data.message || "Failed to register");
+                setMessage(data.message || "Failed to register account");
             }
 
         } catch (error) {
@@ -47,10 +47,6 @@ function Signup() {
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleGoogleAuth = () => {
-        alert("Google OAuth Sign-In Initialized! (Simulated for Prototype)");
     };
 
     return (
@@ -75,9 +71,13 @@ function Signup() {
                 }}>
                     CodeBattleArena
                 </h1>
-                <p style={{ color: "var(--accent-yellow)", fontSize: "0.85rem", fontWeight: "bold", letterSpacing: "1.2px", marginBottom: "30px", textTransform: "uppercase" }}>
+                <p style={{ color: "var(--accent-yellow)", fontSize: "0.85rem", fontWeight: "bold", letterSpacing: "1.2px", marginBottom: "25px", textTransform: "uppercase" }}>
                     WHERE CODERS CLASH
                 </p>
+
+                <h3 style={{ color: "var(--text-main)", fontSize: "1.1rem", marginBottom: "20px", fontWeight: "600" }}>
+                    📧 Register with Gmail / Email
+                </h3>
 
                 {message && (
                     <div style={{
@@ -96,7 +96,7 @@ function Signup() {
                 <form onSubmit={handleSignup} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                     <input
                         type="text"
-                        placeholder="Username"
+                        placeholder="Username (e.g. CodeMaster)"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         required
@@ -105,7 +105,7 @@ function Signup() {
 
                     <input
                         type="email"
-                        placeholder="Email Address"
+                        placeholder="Gmail / Email Address"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
@@ -133,36 +133,9 @@ function Signup() {
                             marginTop: "10px"
                         }}
                     >
-                        {loading ? "Creating Account..." : "⚡ Create CodeBattleArena Account"}
+                        {loading ? "Creating Account..." : "⚡ Register Account"}
                     </button>
                 </form>
-
-                {/* Divider */}
-                <div style={{ display: "flex", alignItems: "center", margin: "25px 0", color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                    <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-color)" }}></div>
-                    <span style={{ padding: "0 10px" }}>OR</span>
-                    <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-color)" }}></div>
-                </div>
-
-                {/* Google Login Button */}
-                <button
-                    onClick={handleGoogleAuth}
-                    type="button"
-                    style={{
-                        width: "100%",
-                        padding: "12px",
-                        backgroundColor: "var(--bg-secondary)",
-                        color: "var(--text-main)",
-                        border: "1px solid var(--border-color)",
-                        fontSize: "0.95rem",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "10px"
-                    }}
-                >
-                    <span style={{ fontSize: "1.1rem" }}>🌐</span> Continue with Google
-                </button>
 
                 <p style={{ marginTop: "25px", color: "var(--text-muted)", fontSize: "0.9rem" }}>
                     Already have an account? <Link to="/login" style={{ color: "var(--accent-cyan)", fontWeight: "bold", textDecoration: "none" }}>Sign In</Link>
